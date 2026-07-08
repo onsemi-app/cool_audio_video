@@ -1,0 +1,55 @@
+services:
+  gemma-backend:
+    image: jetson-gemma4-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    runtime: nvidia
+    network_mode: "host"
+    ipc: host
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    volumes:
+      - ~/models:/models
+      # 🌟 FIX: Map your physical host CUDA directory right into the clean container runtime
+      - /usr/local/cuda:/usr/local/cuda
+    environment:
+      # 🌟 FIX: Hardcode the absolute shared library search path for your JetPack 6 device
+      - LD_LIBRARY_PATH=/usr/local/cuda/targets/aarch64-linux/lib:/usr/local/cuda/lib64:/usr/local/lib
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    command: >
+      --model /models/gemma-4-E2B-it-Q4_K_M.gguf
+      --mmproj /models/mmproj-gemma4-e2b-f16.gguf
+      --port 8080
+      --ctx-size 2048
+      --parallel 1
+      --flash-attn on
+      --n-gpu-layers 99
+    restart: unless-stopped
+
+  vla-agent:
+    image: jetson-gemma4-agent:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    network_mode: "host"
+    ipc: host
+    depends_on:
+      - gemma-backend
+    devices:
+      - "/dev/video0:/dev/video0"
+      - "/dev/snd:/dev/snd"
+    volumes:
+      - /run/user/1000/pulse:/run/user/1000/pulse
+      - ~/.config/pulse/cookie:/root/.config/pulse/cookie
+      - ~/.cache/huggingface:/root/.cache/huggingface
+      - ~/repos/cool_demo/Google_Gemma/Gemma4:/app
+    environment:
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+      - MIC_DEVICE=plughw:0,0
+      - SPK_DEVICE=bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink
+      - PYTHONPATH=/app
+    stdin_open: true
+    tty: true

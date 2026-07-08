@@ -1,0 +1,40 @@
+# ==============================================================================
+# STAGE 1: Compilation Environment (Temporary Sandbox)
+# ==============================================================================
+FROM nvcr.io/nvidia/pytorch:23.10-py3 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y git cmake build-essential && rm -rf /var/lib/apt/lists/*
+
+# Clone and natively compile the llama-server target matching your Orin iGPU
+# 🌟 ONE-SHOT FIX: CMAKE_DISABLE_FIND_PACKAGE_NCCL forcefully kills the library link at the core!
+WORKDIR /build
+RUN git clone https://github.com/ggml-org/llama.cpp.git && \
+    cd llama.cpp && \
+    cmake -B build \
+      -DCMAKE_CUDA_ARCHITECTURES="87" \
+      -DGGML_CUDA=ON \
+      -DGGML_NCCL=OFF \
+      -DCMAKE_DISABLE_FIND_PACKAGE_NCCL=ON \
+      -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" && \
+    cmake --build build --config Release --target llama-server -j$(nproc)
+
+# ==============================================================================
+# STAGE 2: Final Production Application Image (Ultra-Lightweight & Clean)
+# ==============================================================================
+FROM nvcr.io/nvidia/l4t-base:r36.2.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+WORKDIR /app
+
+# Copy the pre-compiled server binary and its matching .so files from builder
+COPY --from=builder /build/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
+COPY --from=builder /build/llama.cpp/build/bin/*.so* /usr/local/lib/
+
+# Force Linux to register the native libraries inside the clean image paths
+RUN ldconfig
+
+EXPOSE 8080
+ENTRYPOINT ["llama-server"]
