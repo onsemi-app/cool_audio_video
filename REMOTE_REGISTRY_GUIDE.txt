@@ -1,5 +1,6 @@
+cat << 'EOF' > ~/repos/cool_demo/Google_Gemma/Gemma4/vla_docker/REMOTE_REGISTRY_GUIDE.txt
 ================================================================================
-AUTOMATED REMOTE SITE CONTAINER REGISTRY, DEPLOYMENT & TROUBLESHOOTING GUIDE
+🌐 AUTOMATED REMOTE SITE CONTAINER REGISTRY, DEPLOYMENT & TROUBLESHOOTING GUIDE
 ================================================================================
 
 [STAGE 1] MAIN COMPILATION & REGISTRY REGISTRATION (RUN ON LOCAL MACHINE)
@@ -14,7 +15,7 @@ AUTOMATED REMOTE SITE CONTAINER REGISTRY, DEPLOYMENT & TROUBLESHOOTING GUIDE
    export REGISTRY_USER="your_dockerhub_username"
 
 4. Compile both production architecture layers simultaneously:
-   # FAT BINARY CROSS-COMPILATION: Compiles pipelines for BOTH AGX Orin (87) 
+   # 🌟 FAT BINARY CROSS-COMPILATION: Compiles pipelines for BOTH AGX Orin (87) 
    # and Orin Nano (87a) simultaneously, rendering the image universally portable!
    DOCKER_BUILDKIT=0 docker compose build
 
@@ -57,7 +58,7 @@ services:
 
   vla-agent:
     image: your_dockerhub_username/jetson-gemma4-agent:latest
-    container_name: gemma-vla-agent   # Forces a universal un-prefixed container name
+    container_name: gemma-vla-agent   # 🌟 Forces a universal un-prefixed container name
     network_mode: "host"
     ipc: host
     group_add:
@@ -67,16 +68,20 @@ services:
       - gemma-backend
     devices:
       - "/dev/snd:/dev/snd"
-      # SYMMETRIC VIDEO ROUTING: Update left side based on Stage 4 hardware scans!
+      # ⚠️ SYMMETRIC VIDEO ROUTING: Update left side based on Stage 4 hardware scans!
       - "/dev/video1:/dev/video1"
     volumes:
       - /run/user/1000/pulse:/run/user/1000/pulse
       - ~/.config/pulse/cookie:/root/.config/pulse/cookie
       - ~/.cache/huggingface:/root/.cache/huggingface
+      # 🌟 CRITICAL PATH FIX FOR CODE DEPLOYMENT:
+      # Map the host directory containing 'Gemma4_vla.py' on the left side of the colon.
+      # If running on a new remote machine, ensure this matches the absolute path where 
+      # the project scripts were extracted (e.g. ~/repos/cool_demo/Google_Gemma/Gemma4).
       - ~/repos/cool_demo/Google_Gemma/Gemma4:/app
     environment:
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
-      # AUDIO/VIDEO ENV VARIABLES: Update these based on Stage 4 hardware scans!
+      # ⚠️ AUDIO/VIDEO ENV VARIABLES: Update these based on Stage 4 hardware scans!
       - MIC_DEVICE=plughw:3,0
       - SPK_DEVICE=bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink
       - WEBCAM=1
@@ -106,7 +111,7 @@ When setting up a brand-new, bare-metal remote Jetson board running JetPack 6.x:
 
 
 ================================================================================
-FIELD OPERATIONS FIELD TROUBLESHOOTING PROTOCOLS (RUN ON REMOTE HARDWARE)
+🛠️ FIELD OPERATIONS FIELD TROUBLESHOOTING PROTOCOLS (RUN ON REMOTE HARDWARE)
 ================================================================================
 
 [STAGE 4] HARDWARE SCANNING & DEVICE INDEX MAPPING
@@ -115,7 +120,7 @@ Audio hardware card indexes (ALSA), sound-server routes (PulseAudio), and video
 node channels (V4L2) all belong to completely different kernel management clusters. 
 Their index addresses will never match up perfectly on boot!
 
-PROTOCOL A: FINDING THE USB MICROPHONE CARD INDEX
+🎤 PROTOCOL A: FINDING THE USB MICROPHONE CARD INDEX
 --------------------------------------------------------------------------------
 Run this command on the remote host terminal:
 arecord -l
@@ -126,7 +131,7 @@ Example Output: "card 3: AIRHUG [AIRHUG USB Mic], device 0: USB Audio"
 -> Configuration Action: Open docker-compose.yml and set:
    - MIC_DEVICE=plughw:3,0
 
-PROTOCOL B: FINDING THE BLUETOOTH / HARDWARE SPEAKER DEVICE STRING
+🔊 PROTOCOL B: FINDING THE BLUETOOTH / HARDWARE SPEAKER DEVICE STRING
 --------------------------------------------------------------------------------
 Since audio output is processed over our routed PulseAudio socket server, speakers 
 are identified by their registered system string name rather than card slots.
@@ -141,7 +146,7 @@ Example Output: "1  bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink  module-bluez5-device
 -> Configuration Action: Open docker-compose.yml and set:
    - SPK_DEVICE=bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink
 
-PROTOCOL C: FINDING THE WEBCAM VIDEO NODE INDEX
+📹 PROTOCOL C: FINDING THE WEBCAM VIDEO NODE INDEX
 --------------------------------------------------------------------------------
 Run this command on the remote host terminal:
 sudo apt-get update && sudo apt-get install -y v4l-utils
@@ -163,9 +168,9 @@ Example Output:
 By default, 'docker compose up -d' bundles terminal feeds into a background 
 view-only log cache, which completely blocks manual keyboard spacebar entries.
 
-SYMPTOM: Pressing Spacebar does nothing / System appears frozen.
+🔒 SYMPTOM: Pressing Spacebar does nothing / System appears frozen.
 
-STEP 1: FIND THE EXACT RUNNING CONTAINER NAME
+🔍 STEP 1: FIND THE EXACT RUNNING CONTAINER NAME
 If your terminal states "no such container", you must check the prefix mapping 
 assigned by the local Docker Compose engine version. Run this command:
 docker ps
@@ -176,7 +181,7 @@ active interface agent. Variations look like this:
    - vla_docker_vla-agent_1
    - gemma-vla-agent (If container_name property is explicitly declared)
 
-STEP 2: ATTACH KEYBOARD CONSOLE STREAM DIRECTLY
+🚀 STEP 2: ATTACH KEYBOARD CONSOLE STREAM DIRECTLY
 Pass the exact container name string you discovered from the command above:
 docker attach <EXACT_CONTAINER_NAME_FROM_DOCKER_PS_OUTPUT>
 
@@ -187,3 +192,4 @@ The screen will clear instantly and drop you into the live interactivity grid!
 • Tap [SPACEBAR] once -> State shifts to "● REC" (Start speaking into mic)
 • Tap [SPACEBAR] again -> Transcribes text, pushes to GPU, and plays voice audio.
 ================================================================================
+EOF
