@@ -34,7 +34,10 @@ Replace 'your_dockerhub_username' with your actual registry target namespace str
 
 services:
   gemma-backend:
-    image: your_dockerhub_username/jetson-gemma4-server:latest
+    image: jetson-gemma4-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.server
     runtime: nvidia
     network_mode: "host"
     ipc: host
@@ -43,47 +46,46 @@ services:
       stack: 67108864
     volumes:
       - ~/models:/models
+      - /usr/local/cuda:/usr/local/cuda
+    environment:
+      - LD_LIBRARY_PATH=/usr/local/cuda/targets/aarch64-linux/lib:/usr/local/cuda/lib64:/usr/local/lib
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
     command: >
       --model /models/gemma-4-E2B-it-Q4_K_M.gguf
       --mmproj /models/mmproj-gemma4-e2b-f16.gguf
       --port 8080
-      --ctx-size 1024       # Optimized for Orin Nano 8GB ceilings (AGX can scale to 2048)
+      --ctx-size 2048
       --parallel 1
       --flash-attn on
-      --batch-size 128
-      --ubatch-size 128
-      --n-gpu-layers 16     # For Orin Nano use 16. For AGX Orin systems scale to 99.
+      --n-gpu-layers 99
     restart: unless-stopped
 
   vla-agent:
-    image: your_dockerhub_username/jetson-gemma4-agent:latest
-    container_name: gemma-vla-agent   # 🌟 Forces a universal un-prefixed container name
+    image: jetson-gemma4-agent:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
     network_mode: "host"
     ipc: host
-    group_add:
-      - audio
-      - video
     depends_on:
       - gemma-backend
     devices:
+      - "/dev/video0:/dev/video0"
       - "/dev/snd:/dev/snd"
-      # ⚠️ SYMMETRIC VIDEO ROUTING: Update left side based on Stage 4 hardware scans!
-      - "/dev/video1:/dev/video1"
+    group_add:
+      - audio
+      - video
     volumes:
       - /run/user/1000/pulse:/run/user/1000/pulse
       - ~/.config/pulse/cookie:/root/.config/pulse/cookie
       - ~/.cache/huggingface:/root/.cache/huggingface
-      # 🌟 CRITICAL PATH FIX FOR CODE DEPLOYMENT:
-      # Map the host directory containing 'Gemma4_vla.py' on the left side of the colon.
-      # If running on a new remote machine, ensure this matches the absolute path where 
-      # the project scripts were extracted (e.g. ~/repos/cool_demo/Google_Gemma/Gemma4).
       - ~/repos/cool_demo/Google_Gemma/Gemma4:/app
     environment:
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
-      # ⚠️ AUDIO/VIDEO ENV VARIABLES: Update these based on Stage 4 hardware scans!
-      - MIC_DEVICE=plughw:3,0
+      - MIC_DEVICE=plughw:0,0
       - SPK_DEVICE=bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink
-      - WEBCAM=1
+      - WEBCAM=0
       - PYTHONPATH=/app
     stdin_open: true
     tty: true
