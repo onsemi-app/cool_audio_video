@@ -1,38 +1,43 @@
-🐳 FINAL PRODUCTION DOCKER HUB REGISTRY & REMOTE SITE DEPLOYMENT MANUAL
+================================================================================
+🌐 AUTOMATED REMOTE SITE CONTAINER REGISTRY, DEPLOYMENT & TROUBLESHOOTING GUIDE
 ================================================================================
 
-[PHASE 1] IMAGE SIGNING & CLOUD PUSH (RUN ON LOCAL MACHINE)
+[STAGE 1] MAIN COMPILATION & REGISTRY REGISTRATION (RUN ON LOCAL MACHINE)
 --------------------------------------------------------------------------------
-1. Navigate to your containerization folder:
+1. Navigate into your workspace folder:
    cd ~/repos/cool_demo/Google_Gemma/Gemma4/vla_docker
 
-2. Log into your Docker Hub account over the CLI:
-   docker login --username your_dockerhub_username
+2. Log into your container registry space (e.g., Docker Hub):
+   docker login
 
-   (When prompted, enter your Docker Hub password or Personal Access Token)
+3. Define your target registry namespace variable:
+   export REGISTRY_USER="your_dockerhub_username"
 
-3. Compile both optimized architecture layers simultaneously:
+4. Compile both production architecture layers simultaneously:
+   # 🌟 FAT BINARY CROSS-COMPILATION: Compiles pipelines for BOTH AGX Orin (87) 
+   # and Orin Nano (87a) simultaneously, rendering the image universally portable!
    DOCKER_BUILDKIT=0 docker compose build
 
-4. Tag the built images to link with your personal Docker Hub namespace:
-   docker tag jetson-gemma4-server:latest your_dockerhub_username/jetson-gemma4-server:latest
-   docker tag jetson-gemma4-agent:latest your_dockerhub_username/jetson-gemma4-agent:latest
+5. Tag the compiled container images to link with your deployment registry:
+   docker tag jetson-gemma4-server:latest $REGISTRY_USER/jetson-gemma4-server:latest
+   docker tag jetson-gemma4-agent:latest $REGISTRY_USER/jetson-gemma4-agent:latest
 
-5. Push the finalized images to the global cloud hub registry:
-   docker push your_dockerhub_username/jetson-gemma4-server:latest
-   docker push your_dockerhub_username/jetson-gemma4-agent:latest
+6. Push the finalized images to the cloud registry space:
+   docker push $REGISTRY_USER/jetson-gemma4-server:latest
+   docker push $REGISTRY_USER/jetson-gemma4-agent:latest
 
 
-[PHASE 2] LIGHTWEIGHT PRODUCTION ORCHESTRATION FILE (SAVE ON REMOTE SITE)
+[STAGE 2] REMOTE SITE PRODUCTION ORCHESTRATION FILE (SAVE ON REMOTE DEVICE)
 --------------------------------------------------------------------------------
-Save this exact text block as 'docker-compose.yml' on the remote system inside
-a fresh deployment workspace directory. 
-
-⚠️ CRITICAL: Replace 'your_dockerhub_username' with your actual namespace!
+Save this exact text block as 'docker-compose.yml' inside your remote site workspace. 
+Replace 'your_dockerhub_username' with your actual registry target namespace string.
 
 services:
   gemma-backend:
-    image: your_dockerhub_username/jetson-gemma4-server:latest
+    image: jetson-gemma4-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.server
     runtime: nvidia
     network_mode: "host"
     ipc: host
@@ -41,6 +46,11 @@ services:
       stack: 67108864
     volumes:
       - ~/models:/models
+      - /usr/local/cuda:/usr/local/cuda
+    environment:
+      - LD_LIBRARY_PATH=/usr/local/cuda/targets/aarch64-linux/lib:/usr/local/cuda/lib64:/usr/local/lib
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all
     command: >
       --model /models/gemma-4-E2B-it-Q4_K_M.gguf
       --mmproj /models/mmproj-gemma4-e2b-f16.gguf
@@ -52,7 +62,10 @@ services:
     restart: unless-stopped
 
   vla-agent:
-    image: your_dockerhub_username/jetson-gemma4-agent:latest
+    image: jetson-gemma4-agent:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
     network_mode: "host"
     ipc: host
     depends_on:
@@ -60,42 +73,123 @@ services:
     devices:
       - "/dev/video0:/dev/video0"
       - "/dev/snd:/dev/snd"
+    group_add:
+      - audio
+      - video
     volumes:
       - /run/user/1000/pulse:/run/user/1000/pulse
       - ~/.config/pulse/cookie:/root/.config/pulse/cookie
       - ~/.cache/huggingface:/root/.cache/huggingface
+      - ~/repos/cool_demo/Google_Gemma/Gemma4:/app
     environment:
       - PULSE_SERVER=unix:/run/user/1000/pulse/native
       - MIC_DEVICE=plughw:0,0
       - SPK_DEVICE=bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink
+      - WEBCAM=0
+      - PYTHONPATH=/app
     stdin_open: true
     tty: true
 
 
-[PHASE 3] CLEAN PRODUCTION INITIALIZATION (RUN ON THE REMOTE HARDWARE)
+[STAGE 3] AUTOMATED INITIALIZATION PROMPT (RUN ON THE REMOTE HARDWARE SITE)
 --------------------------------------------------------------------------------
-Execute these fast terminal blocks on any brand-new remote system to start up:
+When setting up a brand-new, bare-metal remote Jetson board running JetPack 6.x:
 
-1. Setup the target weight filesystem layout:
+1. Setup system directory structure:
    mkdir -p ~/models
 
-2. Move your 'gemma-4-E2B-it-Q4_K_M.gguf' and 'mmproj-gemma4-e2b-f16.gguf' model
-   files directly into the local folder layout at '~/models/'.
+2. Place your 'gemma-4-E2B-it-Q4_K_M.gguf' and 'mmproj-gemma4-e2b-f16.gguf' weight
+   files into the freshly created '~/models' directory.
 
-3. Wake up all 12 cores and lock them at maximum frequencies:
+3. Lock hardware cores at peak performance limits:
    sudo nvpmodel -m 0 && sudo jetson_clocks
 
-4. Clear any old lingering local ports:
+4. Free up network port 8080 constraints:
    sudo pkill -f llama-server
 
-5. Open a terminal right next to the 'docker-compose.yml' file and pull up:
-   docker compose up -d
+5. Open a terminal right next to your downloaded 'docker-compose.yml' and launch:
+   docker compose down && docker compose up -d
 
-   (Docker will instantly stream down your clean compiled image layers from 
-   the cloud, establish the hardware networks, and boot the backend flawlessly!)
 
-6. Pass your active host console keyboard hooks into the running agent container:
-   docker attach vla_docker-vla-agent-1
+================================================================================
+🛠️ FIELD OPERATIONS FIELD TROUBLESHOOTING PROTOCOLS (RUN ON REMOTE HARDWARE)
+================================================================================
 
-7. Press the [SPACEBAR], speak your command to your BRIO mic, and hit SPACEBAR again!
+[STAGE 4] HARDWARE SCANNING & DEVICE INDEX MAPPING
+--------------------------------------------------------------------------------
+Audio hardware card indexes (ALSA), sound-server routes (PulseAudio), and video 
+node channels (V4L2) all belong to completely different kernel management clusters. 
+Their index addresses will never match up perfectly on boot!
+
+🎤 PROTOCOL A: FINDING THE USB MICROPHONE CARD INDEX
+--------------------------------------------------------------------------------
+Run this command on the remote host terminal:
+arecord -l
+
+Look for your hardware descriptor string (e.g., Logitech BRIO or AIRHUG).
+Example Output: "card 3: AIRHUG [AIRHUG USB Mic], device 0: USB Audio"
+-> Extract the card index: '3'
+-> Configuration Action: Open docker-compose.yml and set:
+   - MIC_DEVICE=plughw:3,0
+
+🔊 PROTOCOL B: FINDING THE BLUETOOTH / HARDWARE SPEAKER DEVICE STRING
+--------------------------------------------------------------------------------
+Since audio output is processed over our routed PulseAudio socket server, speakers 
+are identified by their registered system string name rather than card slots.
+
+Run this command on the remote host terminal:
+pactl list short sinks
+
+Look for your target output device (e.g., bluez_sink for Bluetooth headsets, or 
+alsa_output for integrated audio jacks).
+Example Output: "1  bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink  module-bluez5-device..."
+-> Extract the exact name string block: 'bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink'
+-> Configuration Action: Open docker-compose.yml and set:
+   - SPK_DEVICE=bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink
+
+📹 PROTOCOL C: FINDING THE WEBCAM VIDEO NODE INDEX
+--------------------------------------------------------------------------------
+Run this command on the remote host terminal:
+sudo apt-get update && sudo apt-get install -y v4l-utils
+v4l2-ctl --list-devices
+
+Look for the device header string (e.g., Logitech BRIO).
+Example Output:
+   Logitech BRIO (usb-3610000.usb-1):
+       /dev/video1
+       /dev/video2
+-> Extract the LOWEST index number in that specific device group: '1'
+-> Configuration Action: Open docker-compose.yml and update TWO locations:
+   1. Under 'devices', map the symmetric path: - "/dev/video1:/dev/video1"
+   2. Under 'environment', set the index variable matching it: - WEBCAM=1
+
+
+[STAGE 5] ACTIVE INTERACTIVITY PANEL ATTACHMENT
+--------------------------------------------------------------------------------
+By default, 'docker compose up -d' bundles terminal feeds into a background 
+view-only log cache, which completely blocks manual keyboard spacebar entries.
+
+🔒 SYMPTOM: Pressing Spacebar does nothing / System appears frozen.
+
+🔍 STEP 1: FIND THE EXACT RUNNING CONTAINER NAME
+If your terminal states "no such container", you must check the prefix mapping 
+assigned by the local Docker Compose engine version. Run this command:
+docker ps
+
+Look at the absolute far-right column header labeled "NAMES". It will list your 
+active interface agent. Variations look like this:
+   - vla_docker-vla-agent-1
+   - vla_docker_vla-agent_1
+   - gemma-vla-agent (If container_name property is explicitly declared)
+
+🚀 STEP 2: ATTACH KEYBOARD CONSOLE STREAM DIRECTLY
+Pass the exact container name string you discovered from the command above:
+docker attach <EXACT_CONTAINER_NAME_FROM_DOCKER_PS_OUTPUT>
+
+Example:
+docker attach gemma-vla-agent
+
+The screen will clear instantly and drop you into the live interactivity grid!
+• Tap [SPACEBAR] once -> State shifts to "● REC" (Start speaking into mic)
+• Tap [SPACEBAR] again -> Transcribes text, pushes to GPU, and plays voice audio.
 ================================================================================
