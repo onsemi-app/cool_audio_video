@@ -22,7 +22,7 @@ LLAMA_URL = os.getenv("LLAMA_URL", "http://127.0.0.1:8080/v1/chat/completions")
 MIC       = os.getenv("MIC_DEVICE", "plughw:0,0")
 SPK       = os.getenv("SPK_DEVICE", "bluez_sink.A0_E9_DB_00_B1_10.a2dp_sink")
 WEBCAM    = int(os.getenv("WEBCAM", "0"))
-VOICE     = os.getenv("VOICE", "af_jessica")
+VOICE     = os.getenv("VOICE", "am_adam")
 AUDIO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_prompts")
 BGM_PATH  = os.path.join(AUDIO_DIR, "bgm.wav")
 

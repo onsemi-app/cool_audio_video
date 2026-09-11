@@ -1,0 +1,56 @@
+# ==============================================================================
+# THOR-READY JETSON BUILD
+# ==============================================================================
+# NOTE:
+# - CMAKE_CUDA_ARCHITECTURES must be the GPU compute capability, not a CUDA version.
+# - CUDA images must match the Jetson/Thor host toolkit version.
+# - For a Thor/GPU reporting 11.0, use 110.
+# ==============================================================================
+ARG CUDA_ARCHITECTURES=110
+ARG CUDA_VERSION=13.3.0
+
+# ==============================================================================
+# STAGE 1: Compilation Environment (Temporary Sandbox)
+# ==============================================================================
+FROM nvcr.io/nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04 AS builder
+
+# ARGs declared before the first FROM are out of scope here; redeclare to use it below.
+ARG CUDA_ARCHITECTURES
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    cmake \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+RUN git clone --depth 1 https://github.com/ggml-org/llama.cpp.git && \
+    cd llama.cpp && \
+    cmake -B build \
+      -DCMAKE_CUDA_ARCHITECTURES="${CUDA_ARCHITECTURES}" \
+      -DGGML_CUDA=ON \
+      -DGGML_NCCL=OFF \
+      -DCMAKE_DISABLE_FIND_PACKAGE_NCCL=ON \
+      -DCMAKE_EXE_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" \
+      -DCMAKE_SHARED_LINKER_FLAGS="-L/usr/local/cuda/lib64/stubs -lcuda" && \
+    cmake --build build --config Release --target llama-server -j"$(nproc)"
+
+# ==============================================================================
+# STAGE 2: Final Runtime Image
+# ==============================================================================
+FROM nvcr.io/nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  libgomp1 \
+  && cp --dereference /usr/lib/aarch64-linux-gnu/libgomp.so.1 /usr/local/lib/libgomp.so.1 \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+COPY --from=builder /build/llama.cpp/build/bin/llama-server /usr/local/bin/llama-server
+COPY --from=builder /build/llama.cpp/build/bin/*.so* /usr/local/lib/
+RUN ldconfig
+
+EXPOSE 8080
+ENTRYPOINT ["llama-server"]
